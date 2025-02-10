@@ -3,11 +3,24 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog
 import random
 
+import sqlite3
+
+# create connection
+connection = sqlite3.connect("bank.db")
+#create cursor
+cursor = connection.cursor()
+
+# create commit
+#close connection
+
 class BankAccount:
     def __init__(self, name, account_number):
         self.name = name
         self.account_number = account_number
         self.balance = 0.00
+        
+    def __repr__(self):
+        return f"{{'name': '{self.name}', 'account_number': '{self.account_number}', 'balance': '{self.balance}'}}"
 
 class BankTellerApp:
     def __init__(self, master):
@@ -16,8 +29,11 @@ class BankTellerApp:
         master.geometry("500x600")
         master.configure(bg='#f0f0f0')
 
+
         # Dictionary to store multiple bank accounts
         self.accounts = {}
+        # DB Entry
+        
         self.current_account = None
 
         # Create UI Components
@@ -91,13 +107,31 @@ class BankTellerApp:
             return
 
         # Generate random 10-digit account number
-        account_number = str(random.randint(1000000000, 9999999999))
+        account_number = int(random.randint(1000000000, 9999999999)) # change type of acc_no from str to int
         
         # Create a new bank account
         new_account = BankAccount(name, account_number)
-        
         # Store the account in the accounts dictionary
         self.accounts[account_number] = new_account
+        print(self.accounts)
+        # This section should store all existing account data
+        cursor.execute("create table if not exists account_holders (account_name text, account_no integer, account_balance real )")
+        
+        # Insert account details into database
+        cursor.execute(
+            "INSERT INTO account_holders (account_name, account_no, account_balance) VALUES (?, ?, ?)",
+            (new_account.name, new_account.account_number, new_account.balance)
+        )
+
+        # Commit the transaction
+        connection.commit()
+        print("Account successfully stored in the database.")
+
+        # Fetch and print all records
+        cursor.execute("SELECT * FROM account_holders")
+        all_accounts = cursor.fetchall()
+        print("All Accounts in DB:", all_accounts)
+
         
         # Set as current account
         self.current_account = new_account
@@ -118,6 +152,7 @@ class BankTellerApp:
         
         if amount:
             self.current_account.balance += amount
+            # cursor.execute(f"UPDATE account_holders SET account_balance = ? WHERE account_name = ?", (self.accounts.get(BankAccount.__name__, None) ))
             self.balance_label.config(text=f"${self.current_account.balance:.2f}", fg='#2ecc71')
             messagebox.showinfo("Deposit", f"Deposited ${amount:.2f}")
 
@@ -153,6 +188,8 @@ def main():
     root = tk.Tk()
     app = BankTellerApp(root)
     root.mainloop()
+    connection.close()
+
 
 if __name__ == "__main__":
     main()
